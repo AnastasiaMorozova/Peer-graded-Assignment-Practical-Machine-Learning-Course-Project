@@ -33,7 +33,7 @@ summary(training)
 
 Before using the machine learning techniques, it is important to consider only informative variables in the model. The total number of variables except the response variable that are available in the training dataset is equal to 159. However, there exist variables that have little predictive power due to many missing observations. These variables should be removed from the analysis. Additionally, we remove the variables that correspond to the infromation about the participants of the experiment and the timestamps as well as varables that have yero variability.
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 # This part of the code sets the index for the variables that have equall or more than 90% of missing values (NA or blank) in the training set 
 
 indexMissing <- which(colSums(is.na(training)|training=="")>=0.9*dim(training)[1]) 
@@ -54,7 +54,7 @@ dim(validationClean)
 ```
 The cleaned traning set contains 53 variables. On the next step we create a random partition of the training set, so we have an independent validation set.
 
-```{r, echo=FALSE}
+```{r , echo=TRUE}
 
 # Here we create a partition of the traning data set 
 set.seed(333333)
@@ -72,9 +72,9 @@ dim(validationFinal)
 
 ```
 
-After cleaning the data, in order to chose an appropriate variables for the model and prediction function we will use K-fold cross validation technique with number of folds equal to 10 (what is a common choise among practitioners) in order to avoid overfitting. We will compare the performance of several types of the machine learning techniques: classification tree, random forest, generalized linear model and gradient boosting method.
+After cleaning the data, in order to chose an appropriate variables for the model and prediction function we will use K-fold cross validation technique with number of folds equal to 10 (what is a common choise among practitioners) in order to avoid overfitting. We will compare the performance of several types of the machine learning techniques: classification tree, random forest and gradient boosting method.
 # Classification tree
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 # use trainControl to perform cross-validation with 10 folds while building the models in the training set
 
 trCtrl <- trainControl(method="cv", number=10)
@@ -82,7 +82,7 @@ trCtrl <- trainControl(method="cv", number=10)
 # build a classification tree using the training set
 mod_ct<-train(classe~., data=trainingFinal, method="rpart", trControl=trCtrl)
 
-# We can plor the classification tree by using the following command
+# We can plot the classification tree by using the following command
 fancyRpartPlot(mod_ct$finalModel)
 
 # then we use the final model to predict values on the training set
@@ -94,12 +94,13 @@ CM_ct$table
 # get the overall accuracy of the prediction on the testing set and out-of-sample error
 accuracy_ct<-CM_ct$overall[1]
 testing_out_of_sample_error_ct <- 1-accuracy_ct
+testing_out_of_sample_error_ct
 ```
 
 The error of the classification of the method is pretty high (__`r testing_out_of_sample_error_ct`__). 
 
 # Random forest
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 # train a random forest 
 
 mod_rf <- train(classe~., data=trainingFinal, method="rf", trControl=trCtrl, verbose=FALSE)
@@ -116,11 +117,12 @@ CM_rf <- confusionMatrix(trainPred_rf,testingFinal$classe)
 CM_rf$table
 accuracy_rf<-CM_rf$overall[1]
 testing_out_of_sample_error_rf <- 1 - accuracy_rf
+testing_out_of_sample_error_rf
 ```
 Next candidate method is boosting with trees.
 
 # Boosting
-```{r, echo=FALSE}
+```{r,  echo=TRUE}
 mod_gbm <- train(classe~., data=trainingFinal, method="gbm", trControl=trCtrl, verbose=FALSE)
 print(mod_gbm)
 
@@ -135,34 +137,21 @@ CM_gbm <- confusionMatrix(trainPred_gbm,testingFinal$classe)
 CM_gbm$table
 accuracy_gbm<-CM_gbm$overall[1]
 testing_out_of_sample_error_gbm <- 1 - accuracy_gbm
+testing_out_of_sample_error_gbm
 
 plot(mod_gbm)
 ```
-# Generalized linear model
-```{r, echo=FALSE}
-mod_glm <- train(classe~., data=trainingFinal, method="glm", trControl=trCtrl)
-print(mod_glm)
-
-# predict values of the testing set
-
-trainPred_glm <- predict(mod_glm,newdata=testingFinal)
-
-CM_glm <- confusionMatrix(trainPred_glm,testingFinal$classe)
-
-# display confusion matrix, model accuracy and overall error rate
-
-CM_glm$table
-accuracy_glm<-CM_glm$overall[1]
-testing_out_of_sample_error_glm <- 1 - accuracy_glm
+# Boosting vs Random forest
+```{r, echo=TRUE}
 
 # see the relative performance of rendom forest and glm model in the prediction exercise for the test set
-qplot(trainPred_glm,trainPred_rf,colour=classe,data=testingFinal)
+qplot(trainPred_gbm,trainPred_rf,colour=classe,data=testingFinal)
 ```
-We can as well combine the predictors to get better performance. We will combine the random forest with boosting and the glm model on the training set and see how the accuracy of the predictions changes.
+From the graph above it can be seen that the random forest has a better predictive power. We can as well combine the predictors to get better performance. We will combine the random forest with boosting and the glm model on the training set and see how the accuracy of the predictions changes.
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 # create the data frame with the forecasts on the training set
-predDF <- data.frame(trainPred_rf, trainPred_gbm, trainPred_glm, classe = testingFinal$classe)
+predDF <- data.frame(trainPred_rf, trainPred_gbm, classe = testingFinal$classe)
 
 # train the model and evaluate predictions
 combModFit <- train(classe ~ ., method = "rf", data = predDF)
@@ -170,44 +159,35 @@ combPred <- predict(combModFit, predDF)
 
 # display confusion matrix, model accuracy and overall error rate
 
-CM_mix<-confusionMatrix(combPred, testing$diagnosis)$overall[1]
+CM_mix<-confusionMatrix(combPred, testingFinal$classe)
 CM_mix$table
 accuracy_mix<-CM_mix$overall[1]
 testing_out_of_sample_error_mix <- 1 - accuracy_mix
-
+testing_out_of_sample_error_mix
 ```
-Based on the analysis of the training set, we coose the mixed model for the prediction exercise. In order to get representative out-of-sample errors we need to evaluate the models on the validation set.
+Based on the analysis of the error on the training set, we see that the accuracy of the combined model is not significantly larger in comparison to random forest. Therefore, we do not consider the combination of the forecasts on the validation step and predict the values only with random forest and gradient boosting method in order to get representative out-of-sample errors.
 
 ## Evaluate the model and out-of-sample errors of the chosen models on the validation set
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 predV_rf<-predict(mod_rf,validationFinal)
 predV_gbm<-predict(mod_gbm,validationFinal)
-predV_glm<-predict(mod_glm,validationFinal)
 
-predVDF<-data.frame(pred1=predV_rf, pred2=predV_gbm, pred3=predV_glm)
-combPredV<-predict(combModFit,predVDF)
+CMV_rf<-confusionMatrix(predV_rf, validationFinal$classe)
+CMV_rf$table
+out_of_sample_error_rf <- 1 - CMV_rf$overall[1]
+out_of_sample_error_rf
 
-# display confusion matrix, model accuracy and overall error rate
+CMV_gbm<-confusionMatrix(predV_gbm, validationFinal$classe)
+CMV_gbm$table
+out_of_sample_error_gbm <- 1 - CMV_gbm$overall[1]
+out_of_sample_error_gbm
 
-CMV_mix<-confusionMatrix(combPredV, validationFinal$classe)$overall[1]
-CMV_mix$table
-out_of_sample_error_mix <- 1 - CMV_mix$overall[1]
 ```
-
+Based on the better predictive power (error rate on validation set is equal to 0.0122) random forest procedure was chosen to obtain the predicted values for 20 testing cases.
 # Prediction for the 20 test cases
 Here are the predictions of the 20 test cases based on the models chosen above.
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 p_rf<-predict(mod_rf,validationClean)
-p_gbm<-predict(mod_gbm,validationClean)
-p_glm<-predict(mod_glm,validationClean)
-
-pDF<-data.frame(pred1=p_rf, pred2=p_gbm, pred3=p_glm)
-combP<-predict(combModFit,pDF)
-
-
 p_rf
-p_gbm
-p_glm
-combP
 ```
