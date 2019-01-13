@@ -122,7 +122,7 @@ Next candidate method is boosting with trees.
 # Boosting
 ```{r, echo=FALSE}
 mod_gbm <- train(classe~., data=trainingFinal, method="gbm", trControl=trCtrl, verbose=FALSE)
-print(model_gbm)
+print(mod_gbm)
 
 # predict values of the testing set
 
@@ -141,7 +141,7 @@ plot(mod_gbm)
 # Generalized linear model
 ```{r, echo=FALSE}
 mod_glm <- train(classe~., data=trainingFinal, method="glm", trControl=trCtrl)
-print(model_glm)
+print(mod_glm)
 
 # predict values of the testing set
 
